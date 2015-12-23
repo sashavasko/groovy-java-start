@@ -1,0 +1,47 @@
+apply plugin: 'java'
+apply plugin: 'groovy'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'maven'
+apply plugin: 'application'
+apply from: 'dependency.gradle'
+
+mainClassName = 'com.github.sashavasko.batch.BatchRunner'
+applicationDefaultJvmArgs = ['-Xms3072m', '-Xmx7168m', '-XX:+UseConcMarkSweepGC', '-XX:+UseParNewGC']
+//applicationDefaultJvmArgs = ['-Xms1536m', '-Xmx1536m',]
+
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+
+repositories{
+    mavenLocal()
+    mavenCentral()
+    maven {  url 'https://repository.cloudera.com/artifactory/cloudera-repos'}
+    maven {  url 'http://resolver.svc.cfx/all' }
+}
+
+buildscript {
+    repositories {
+        maven {  url 'https://repository.cloudera.com/artifactory/cloudera-repos'}
+        maven {  url 'http://resolver.svc.cfx/all' }
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.2'
+    }
+}
+
+apply plugin: 'com.github.johnrengelman.shadow'
+
+jar {
+    manifest {
+        def manifestVersion = "${version}"
+        attributes 'Implementation-Version':manifestVersion;
+    }
+}
+
+shadowJar{
+    baseName = "${rootProject.name}-all"
+    classifier = ''
+}
+
+apply from: 'deploy.gradle'

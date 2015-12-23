@@ -1,0 +1,21 @@
+
+configurations { sshAntTask }
+
+dependencies {
+   	compile(group: 'org.codehaus.groovy', name: 'groovy-all', version: 'latest.release')
+	compile (
+		   'org.mongodb:mongo-java-driver:3.0.3',
+		   'org.apache.avro:avro:1.7.6'
+		   )
+	compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.3'
+	compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.3'
+   	compile(group: 'com.oracle', name: 'ojdbc6', version: '11.2.0.3')
+	compile(group: 'mysql', name: 'mysql-connector-java', version: '5.1.35')
+	compile(group: 'org.codehaus.groovy.modules.http-builder', name: 'http-builder', version: '0.7.2'){	exclude module: 'commons-codec'	}
+
+	testCompile (
+			'junit:junit:4.11'
+			)
+	sshAntTask ('org.apache.ant:ant-jsch:1.9.2', 'com.jcraft:jsch:0.1.51')
+}
+

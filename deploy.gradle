@@ -1,0 +1,54 @@
+ext.scripts=['run.sh']
+
+task makeRunSh() << {
+    def envDir = 'dev'
+    if (env == 'prod')
+        envDir = ''
+
+    String common = new File("$rootDir/src/main/resources/common.sh")
+            .getText('UTF-8')
+            .replaceAll('@env@', "${envDir}")
+            .replaceAll('@version@', "${version}")
+            .replaceAll('\r\n', '\n')
+
+    String batchJob = '''
+\\$BATCH_PATH/\\$BATCH_FILE \\$JOB_NAME
+echo "\\$JOB_NAME COMPLETE"
+'''
+    println common
+    println batchJob
+    scripts.each { file ->
+        String contents = new File("$rootDir/src/main/resources/$file").getText('UTF-8')
+        contents = contents.replaceAll('@batch_job@', batchJob)
+        File out = new File("$distsDir/$file")
+        out.write(common + '\n' + contents.replaceAll('\r\n', '\n') + '\ntoday=\n', 'UTF-8')
+        out.setExecutable(true)
+    }
+}
+
+task deploy(dependsOn: [clean, test, makeRunSh, shadowJar, distZip]) << {
+    def dst = env == 'prod' ? "/apps/${rootProject.name}/batch" : "/apps/${rootProject.name}/dev/batch"
+    def oozieDst  = env == 'prod' ? "/${rootProject.name}/oozie/lib" : "${rootProject.name}/dev/oozie/lib"
+
+
+    ant.taskdef(name: 'scp', classname: 'org.apache.tools.ant.taskdefs.optional.ssh.Scp', classpath: configurations.sshAntTask.asPath)
+    ant.taskdef(name: 'sshexec', classname: 'org.apache.tools.ant.taskdefs.optional.ssh.SSHExec', classpath: configurations.sshAntTask.asPath)
+
+    ant.unzip(src:"$distsDir/$rootProject.name-${version}.zip", dest:"$distsDir/temp")
+    ant.scp(todir: "${username}@${destHost}:${dst}", trust: 'yes', keyfile: "${privateKey}") {
+        fileset(dir: "$buildDir/libs") {
+            include(name: "${rootProject.name}-all-${version}.jar")
+        }
+        fileset(dir: "$distsDir/temp") {
+            include(name: "**/*")
+        }
+        fileset(dir: "$distsDir/") {
+            scripts.each {file->
+                include(name: file)
+            }
+        }
+    }
+    ant.sshexec(host:"${destHost}", username: "${username}",trust: 'yes', keyfile: "${privateKey}", command: "chmod +x ${dst}/*.sh" )
+    ant.sshexec(host:"${destHost}", username: "${username}",trust: 'yes', keyfile: "${privateKey}", command: "chmod +x ${dst}/$rootProject.name-${version}/bin/$rootProject.name" )
+    ant.sshexec(host:"${destHost}", username: "${username}",trust: 'yes', keyfile: "${privateKey}", command: "hdfs dfs -put -f ${dst}/${rootProject.name}-all-${version}.jar ${oozieDst}/ && hdfs dfs -chmod 777 ${oozieDst}/*" )
+}
